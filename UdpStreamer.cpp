@@ -2,12 +2,17 @@
 //
 
 #include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 
 #if WIN32
 #include <winsock2.h>
-void nanosleep(DWORD waitTime);
+void usleep(DWORD waitTime);
+typedef int socklen_t;
 #else
 #include <sys/socket.h>
+#include <netdb.h>
+#include <unistd.h>
 #endif
 
 #define CLIENT_IP "192.168.0.19"
@@ -152,7 +157,7 @@ int SendFrame(int frameNr, char* frameBuffer, int frameSize)
 		{
 			return i;
 		}
-		nanosleep(30000);
+		usleep(30);
 	}
 
 	return numOfPackets;
@@ -162,7 +167,7 @@ int ReceiveFrame(int frameNr, char* frameBuffer, int frameSize)
 {
 	// Receive Data
 	char buffer_to_receive[2048];
-	int addrlen = sizeof(clientaddr);            /* length of addresses */
+	socklen_t addrlen = sizeof(clientaddr);            /* length of addresses */
 	int recvlen = recvfrom(sock, buffer_to_receive, 2048, 0, (struct sockaddr *)&clientaddr, &addrlen);
 
 	return 0;
@@ -170,7 +175,7 @@ int ReceiveFrame(int frameNr, char* frameBuffer, int frameSize)
 
 #if WIN32
 // Windows Helpers
-void nanosleep(DWORD waitTime) 
+void usleep(DWORD waitTime)
 {
 	LARGE_INTEGER perfCnt, start, now;
     QueryPerformanceFrequency(&perfCnt);
@@ -178,6 +183,6 @@ void nanosleep(DWORD waitTime)
 
 	do {
 		QueryPerformanceCounter((LARGE_INTEGER*)&now);
-	} while ((now.QuadPart - start.QuadPart) / float(perfCnt.QuadPart) * 1000.0 * 1000.0 * 1000.0 < waitTime);
+	} while ((now.QuadPart - start.QuadPart) / float(perfCnt.QuadPart) * 1000.0 * 1000.0  < waitTime);
 }
 #endif
