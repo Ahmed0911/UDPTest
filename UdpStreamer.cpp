@@ -58,7 +58,9 @@ int main()
 	{
 		InitServer();
 
-		int ReceiveFrame(int frameNr, char* frameBuffer, int frameSize);		
+		// Receive One Frame
+		int receivedPackets = ReceiveFrame(1, frameBuffer, int FRAME_SIZE);
+		printf("Received: %d frames (%0.2f %%)\n", receivedPackets, receivedPackets/100000.0 * 100);
 	}
 	else
 	{
@@ -67,7 +69,7 @@ int main()
 		// Send Data
 		int sent = SendFrame(1, frameBuffer, FRAME_SIZE);
 		printf("Sent: %d frames\n", sent);
-		SendFrame(2, frameBuffer, FRAME_SIZE); // change frame number to stop receive and report!
+		SendFrame(2, frameBuffer, FRAME_SEND_SIZE*10); // change frame number to stop receive and report!
 	}
 	
 
@@ -165,12 +167,28 @@ int SendFrame(int frameNr, char* frameBuffer, int frameSize)
 
 int ReceiveFrame(int frameNr, char* frameBuffer, int frameSize)
 {
-	// Receive Data
-	char buffer_to_receive[2048];
-	socklen_t addrlen = sizeof(clientaddr);            /* length of addresses */
-	int recvlen = recvfrom(sock, buffer_to_receive, 2048, 0, (struct sockaddr *)&clientaddr, &addrlen);
+	int receivedPackets = 0;
 
-	return 0;
+	// Receive Data
+	sFrameHeader header;
+	header.FrameNumber = frameNr;
+	char buffer_to_receive[2048];	
+	do
+	{
+		socklen_t addrlen = sizeof(clientaddr);            /* length of addresses */
+		int recvlen = recvfrom(sock, buffer_to_receive, 2048, 0, (struct sockaddr *)&clientaddr, &addrlen);
+		if (recvlen == (FRAME_SEND_SIZE + sizeof(sFrameHeader)) )
+		{
+			// valid frame
+			memcpy(&header, &buffer_to_receive[0], sizeof(sFrameHeader));
+			receivedPackets++;
+
+			// TODO: COPY DATA
+			//memcpy(frameBuffer + header.PacketNumber *FRAME_SEND_SIZE, &buffer_to_receive[sizeof(sFrameHeader)], FRAME_SEND_SIZE); // TODO: fix last packet size!
+		}
+	} while (header.FrameNumber == frameNr);
+
+	return receivedPackets;
 }
 
 #if WIN32
