@@ -19,7 +19,7 @@ typedef int socklen_t;
 #define SERVER_IP "192.168.0.20"
 #define SERVER_PORT 12345
 #define FRAME_SEND_SIZE 1450 /* Without Header */
-#define FRAME_SIZE (FRAME_SEND_SIZE*100000) /* Total Frame Size in bytes */
+#define FRAME_SIZE (FRAME_SEND_SIZE*1000000) /* Total Frame Size in bytes */
 
 struct sFrameHeader
 {
@@ -31,6 +31,10 @@ int InitClient();
 int InitServer();
 int SendFrame(int frameNr, char* frameBuffer, int frameSize);
 int ReceiveFrame(int frameNr, char* frameBuffer, int frameSize);
+
+// Timer stuff
+void StartTimer();
+double GetElapsedTimeSec();
 
 // global vars
 int sock;
@@ -59,6 +63,7 @@ int main()
 		InitServer();
 
 		// Receive One Frame
+		printf("Waiting for Frame...\n");
 		int receivedPackets = ReceiveFrame(1, frameBuffer, int FRAME_SIZE);
 		printf("Received: %d frames (%0.2f %%)\n", receivedPackets, receivedPackets/100000.0 * 100);
 	}
@@ -67,8 +72,12 @@ int main()
 		InitClient();
 
 		// Send Data
+		printf("Sending Frame...\n");
+		StartTimer();
 		int sent = SendFrame(1, frameBuffer, FRAME_SIZE);
-		printf("Sent: %d frames\n", sent);
+		double seconds = GetElapsedTimeSec();
+		double Mbps = (double)sent*FRAME_SEND_SIZE * 8 * 1e-6 / seconds; // doesn't include overhead!!!
+		printf("Sent: %d frames in %0.2f seconds [%0.2f Mbps]\n", sent, seconds, Mbps);
 		SendFrame(2, frameBuffer, FRAME_SEND_SIZE*10); // change frame number to stop receive and report!
 	}
 	
@@ -159,7 +168,7 @@ int SendFrame(int frameNr, char* frameBuffer, int frameSize)
 		{
 			return i;
 		}
-		usleep(30);
+		usleep(10); // TODO!!!
 	}
 
 	return numOfPackets;
@@ -202,5 +211,33 @@ void usleep(DWORD waitTime)
 	do {
 		QueryPerformanceCounter((LARGE_INTEGER*)&now);
 	} while ((now.QuadPart - start.QuadPart) / float(perfCnt.QuadPart) * 1000.0 * 1000.0  < waitTime);
+}
+
+LARGE_INTEGER liStartTime;
+void StartTimer()
+{
+	QueryPerformanceCounter(&liStartTime);
+}
+
+double GetElapsedTimeSec()
+{
+	LARGE_INTEGER perfCnt, now;
+	QueryPerformanceFrequency(&perfCnt);
+	QueryPerformanceCounter((LARGE_INTEGER*)&now);
+
+	double timeSeconds = ((now.QuadPart - liStartTime.QuadPart) / float(perfCnt.QuadPart));
+
+	return timeSeconds;
+}
+#else
+void StartTimer()
+{
+
+}
+
+double GetElapsedTimeSec()
+{
+	
+	return 1;
 }
 #endif
