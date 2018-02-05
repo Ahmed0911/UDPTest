@@ -18,7 +18,7 @@ typedef int socklen_t;
 #define SERVER_IP "192.168.0.20"
 #define SERVER_PORT 12345
 #define FRAME_SEND_SIZE 1450 /* Without Header */
-#define FRAME_SIZE (FRAME_SEND_SIZE*1000000) /* Total Frame Size in bytes */
+#define FRAME_SIZE (FRAME_SEND_SIZE*100000) /* Total Frame Size in bytes */
 
 struct sFrameHeader
 {
@@ -77,7 +77,7 @@ int main()
 		int sent = SendFrame(1, frameBuffer, FRAME_SIZE);
 		double seconds = GetElapsedTimeSec();
 		double Mbps = (double)sent*FRAME_SEND_SIZE * 8 * 1e-6 / seconds; // doesn't include overhead!!!
-		printf("Sent: %d frames in %0.2f seconds [%0.2f Mbps]\n", sent, seconds, Mbps);
+		printf("Sent: %d frames in %0.2f seconds [%0.2f Mbps, %0.2f MByte/s]\n", sent, seconds, Mbps, Mbps/8);
 		SendFrame(2, frameBuffer, FRAME_SEND_SIZE*10); // change frame number to stop receive and report!
 	}
 	
@@ -116,6 +116,13 @@ int InitClient()
 	serveraddr.sin_family = AF_INET;
 	serveraddr.sin_port = htons(SERVER_PORT);
 	memcpy((void *)&serveraddr.sin_addr, hp_server->h_addr_list[0], hp_server->h_length);
+
+	// "connect" to server (use send/write instead of sendto)
+	if (connect(sock, (struct sockaddr *)&serveraddr, sizeof(serveraddr)) < 0)
+	{
+		perror("connect  failed");
+		return -1;
+	}
 
 	return 0;
 }
@@ -164,11 +171,11 @@ int SendFrame(int frameNr, char* frameBuffer, int frameSize)
 		header.PacketNumber = i;
 		memcpy(&sendBuffer[0], &header, sizeof(sFrameHeader));
 		memcpy(&sendBuffer[sizeof(sFrameHeader)], frameBuffer+i*FRAME_SEND_SIZE, FRAME_SEND_SIZE); // TODO: fix last packet size!
-		if (sendto(sock, sendBuffer, FRAME_SEND_SIZE + sizeof(sFrameHeader), 0, (struct sockaddr *)&serveraddr, sizeof(serveraddr)) < 0)
+		if (send(sock, sendBuffer, FRAME_SEND_SIZE + sizeof(sFrameHeader), 0) < 0)
 		{
 			return i;
 		}
-		MuSleep(10); // TODO!!!
+		MuSleep(20); // TODO!!!
 	}
 
 	return numOfPackets;
