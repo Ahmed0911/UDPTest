@@ -1,24 +1,24 @@
-// UdpStreamer.cpp : Defines the entry point for the console application.
-//
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
 #if WIN32
 #include <winsock2.h>
-void usleep(DWORD waitTime);
 typedef int socklen_t;
 #else
 #include <sys/socket.h>
 #include <netdb.h>
 #include <unistd.h>
+#include <time.h>
 #endif
 
-#define CLIENT_IP "10.12.3.16"
-#define SERVER_IP "10.12.7.253"
+//#define CLIENT_IP "10.12.3.16"
+//#define SERVER_IP "10.12.7.253"
+#define CLIENT_IP "192.168.0.19"
+#define SERVER_IP "192.168.0.20"
 #define SERVER_PORT 12345
 #define FRAME_SEND_SIZE 1450 /* Without Header */
-#define FRAME_SIZE (FRAME_SEND_SIZE*100000) /* Total Frame Size in bytes */
+#define FRAME_SIZE (FRAME_SEND_SIZE*1000000) /* Total Frame Size in bytes */
 
 struct sFrameHeader
 {
@@ -34,6 +34,7 @@ int ReceiveFrame(int frameNr, char* frameBuffer, int frameSize);
 // Timer stuff
 void StartTimer();
 double GetElapsedTimeSec();
+void MuSleep(unsigned int waitTimeUS);
 
 // global vars
 int sock;
@@ -167,7 +168,7 @@ int SendFrame(int frameNr, char* frameBuffer, int frameSize)
 		{
 			return i;
 		}
-		//usleep(10); // TODO!!!
+		MuSleep(10); // TODO!!!
 	}
 
 	return numOfPackets;
@@ -189,7 +190,7 @@ int ReceiveFrame(int frameNr, char* frameBuffer, int frameSize)
 		{
 			// valid frame
 			memcpy(&header, &buffer_to_receive[0], sizeof(sFrameHeader));
-			receivedPackets++;
+			if(header.FrameNumber == frameNr) receivedPackets++; // increase only if corrent frameNr
 
 			// TODO: COPY DATA
 			//memcpy(frameBuffer + header.PacketNumber *FRAME_SEND_SIZE, &buffer_to_receive[sizeof(sFrameHeader)], FRAME_SEND_SIZE); // TODO: fix last packet size!
@@ -201,7 +202,7 @@ int ReceiveFrame(int frameNr, char* frameBuffer, int frameSize)
 
 #if WIN32
 // Windows Helpers
-void usleep(DWORD waitTime)
+void MuSleep(unsigned int waitTimeUS)
 {
 	LARGE_INTEGER perfCnt, start, now;
     QueryPerformanceFrequency(&perfCnt);
@@ -209,7 +210,7 @@ void usleep(DWORD waitTime)
 
 	do {
 		QueryPerformanceCounter((LARGE_INTEGER*)&now);
-	} while ((now.QuadPart - start.QuadPart) / float(perfCnt.QuadPart) * 1000.0 * 1000.0  < waitTime);
+	} while ((now.QuadPart - start.QuadPart) / float(perfCnt.QuadPart) * 1000.0 * 1000.0  < waitTimeUS);
 }
 
 LARGE_INTEGER liStartTime;
@@ -229,14 +230,38 @@ double GetElapsedTimeSec()
 	return timeSeconds;
 }
 #else
+void MuSleep(unsigned int waitTimeUS)
+{
+	struct timespec start, now;
+	clock_gettime(CLOCK_MONOTONIC, &start);
+	double timeStart = start.tv_sec + (double)start.tv_nsec * 1e-9;
+	double timeNow;
+
+	do
+	{
+		clock_gettime(CLOCK_MONOTONIC, &now);
+		timeNow = now.tv_sec + (double)now.tv_nsec * 1e-9;
+	} while ( (timeNow - timeStart) < ((double)waitTimeUS * 1e-6) );
+}
+
+double dStartTime;
 void StartTimer()
 {
+	struct timespec ts;
+	clock_gettime(CLOCK_MONOTONIC, &ts);
 
+	double time = ts.tv_sec + (double)ts.tv_nsec * 1e-9;
+	dStartTime = time;
 }
 
 double GetElapsedTimeSec()
 {
-	
-	return 1;
+	struct timespec ts;
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+
+	double time = ts.tv_sec + (double)ts.tv_nsec * 1e-9;
+
+	return time - dStartTime;
 }
 #endif
+
