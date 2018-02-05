@@ -1,6 +1,5 @@
 // UdpStreamer.cpp : Defines the entry point for the console application.
 //
-
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -15,11 +14,11 @@ typedef int socklen_t;
 #include <unistd.h>
 #endif
 
-#define CLIENT_IP "192.168.0.19"
-#define SERVER_IP "192.168.0.20"
+#define CLIENT_IP "10.12.3.16"
+#define SERVER_IP "10.12.7.253"
 #define SERVER_PORT 12345
 #define FRAME_SEND_SIZE 1450 /* Without Header */
-#define FRAME_SIZE (FRAME_SEND_SIZE*1000000) /* Total Frame Size in bytes */
+#define FRAME_SIZE (FRAME_SEND_SIZE*100000) /* Total Frame Size in bytes */
 
 struct sFrameHeader
 {
@@ -168,7 +167,7 @@ int SendFrame(int frameNr, char* frameBuffer, int frameSize)
 		{
 			return i;
 		}
-		usleep(10); // TODO!!!
+		//usleep(10); // TODO!!!
 	}
 
 	return numOfPackets;
